@@ -324,6 +324,7 @@ exec((ROOT/'tests/surf_scenarios.py').read_text())
 exec((ROOT/'tests/browser_scenarios.py').read_text())
 exec((ROOT/'tests/active_scenarios.py').read_text())
 exec((ROOT/'tests/control_scenarios.py').read_text())
+exec((ROOT/'tests/scroll_scenarios.py').read_text())
 
 # Leave the final test branch with all modifiers disabled and responsive field controls.
 open_menu();select(5);m.tap(A);m.tap(START);m.tap(A);close_menu()

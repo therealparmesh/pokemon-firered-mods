@@ -472,6 +472,26 @@ static void Draw(void)
     Print(sBrowser < C_COUNT ? sBrowseControls : sModPage == P_ACTIVE ? sActiveControls : sControls, 0, 132);
     CopyWindowToVram(sWindow, COPYWIN_FULL);
 }
+static void DrawChoiceValue(u16 row)
+{
+    u8 value[64];
+    u16 y = 18 + (row % 7) * 14;
+    u16 id = Rows()[row].id;
+    FillWindowPixelRect(sWindow, PIXEL_FILL(1), 126, y, 98, 14);
+    FormatValue(id, ModValue(id), value);
+    Print(value, 126, y);
+}
+static void DrawChangedChoice(u16 setting)
+{
+    u16 row, first = sModCursor / 7 * 7;
+    DrawChoiceValue(sModCursor);
+    if (setting == C_EDIT_SPECIES)
+        for (row = first; row < first + 7 && row < RowCount(); row++)
+            if (Rows()[row].id == C_ABILITY) DrawChoiceValue(row);
+    FillWindowPixelRect(sWindow, PIXEL_FILL(1), 0, 119, 224, 12);
+    Print(sModPage >= P_PARTY ? sDraft : sSession, 0, 119);
+    CopyWindowToVram(sWindow, COPYWIN_FULL);
+}
 static void NormalizeAbility(void)
 {
     if (!gSpeciesInfo[NationalPokedexNumToSpecies(ModValue(C_EDIT_SPECIES))].abilities[1])
@@ -484,6 +504,39 @@ static bool8 ValidHeldItem(u16 id)
 static bool8 ValidItem(u16 id)
 {
     return id == ITEM_NONE || (id < ITEMS_COUNT && ItemId_GetId(id) == id && ItemId_GetPocket(id) != 0);
+}
+static bool8 ValidChoice(u16 setting, u16 value)
+{
+    if (setting == C_ITEM || setting == C_HELD_ITEM)
+        return ValidItem(value) && (setting != C_HELD_ITEM || ValidHeldItem(value));
+    return TRUE;
+}
+static bool8 IsNamedChoice(u16 setting)
+{
+    return setting == C_ITEM || setting == C_HELD_ITEM || setting == C_SPECIES || setting == C_EDIT_SPECIES || (setting >= C_MOVE1 && setting <= C_MOVE4);
+}
+static u16 ScrollChoice(const struct ModRow *row, u16 previous, s16 delta)
+{
+    s32 value = previous, next;
+    u16 step, attempts;
+    s16 direction = delta < 0 ? -1 : 1;
+    u16 steps = delta < 0 ? -delta : delta;
+    for (step = 0; step < steps; step++)
+    {
+        next = value;
+        for (attempts = 0; attempts <= row->max - row->min; attempts++)
+        {
+            next += direction;
+            if (next < row->min || next > row->max)
+            {
+                // Single steps wrap; ten-choice jumps stop at the last choice.
+                if (steps != 1) return value;
+                next = direction > 0 ? row->min : row->max;
+            }
+            if (ValidChoice(row->id, next)) { value = next; break; }
+        }
+    }
+    return value;
 }
 static bool8 SpeciesBrowser(void)
 {
@@ -797,8 +850,9 @@ static void Task_ModMenu(u8 taskId)
         u16 previous = ModValue(id);
         s32 value;
         u16 maximum = entry->max;
+        bool8 namedChoice = IsNamedChoice(id);
         sStatus = NULL;
-        if (MOD_NEW(A_BUTTON) && (id == C_SPECIES || id == C_EDIT_SPECIES || id == C_ITEM || id == C_HELD_ITEM || (id >= C_MOVE1 && id <= C_MOVE4))) { Browser(id); Draw(); return; }
+        if (MOD_NEW(A_BUTTON) && namedChoice) { Browser(id); Draw(); return; }
         if (id == C_WALLS && !ModValue(id)) { sConfirm = id; Draw(); return; }
         value = ModValue(id) + (delta ? delta : 1);
         if (entry->max == 1) value = !ModValue(id);
@@ -808,12 +862,15 @@ static void Task_ModMenu(u8 taskId)
             if (value < entry->min) value = delta == -1 ? maximum : entry->min;
             else if (value > maximum) value = delta == 1 || !delta ? entry->min : maximum;
         }
-        if (((id == C_ITEM || id == C_HELD_ITEM) && !ValidItem(value)) || (id == C_HELD_ITEM && !ValidHeldItem(value))) { Browser(id); Draw(); return; }
+        if (namedChoice)
+            value = ScrollChoice(entry, previous, delta);
         if (id == C_ABILITY && !gSpeciesInfo[NationalPokedexNumToSpecies(ModValue(C_EDIT_SPECIES))].abilities[1]) value = 0;
         gMods.values[id] = value;
         if (id == C_EDIT_SPECIES) NormalizeAbility();
         if (id == C_PARTY && value != previous && value < gPlayerPartyCount) ModLoadPartyEditor();
-        Draw(); return;
+        if (namedChoice) DrawChangedChoice(id);
+        else Draw();
+        return;
     }
     if (MOD_NEW(A_BUTTON))
     {
