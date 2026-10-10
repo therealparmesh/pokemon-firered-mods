@@ -69,14 +69,14 @@ MID_BUILDDIR = $(OBJ_DIR)/$(MID_SUBDIR)
 SHELL := bash -o pipefail
 
 # Set flags for tools
-ASFLAGS := -mcpu=arm7tdmi --defsym $(GAME_VERSION)=1 --defsym REVISION=$(GAME_REVISION) --defsym $(GAME_LANGUAGE)=1 --defsym MODERN=$(MODERN)
+ASFLAGS := -mcpu=arm7tdmi --defsym $(GAME_VERSION)=1 --defsym REVISION=$(GAME_REVISION) --defsym $(GAME_LANGUAGE)=1 --defsym MODERN=$(MODERN) --defsym NATIVE_MODS=$(MODS)
 
 INCLUDE_DIRS := include
 INCLUDE_CPP_ARGS := $(INCLUDE_DIRS:%=-iquote %)
 INCLUDE_SCANINC_ARGS := $(INCLUDE_DIRS:%=-I %)
 
 O_LEVEL ?= 2
-CPPFLAGS := $(INCLUDE_CPP_ARGS) -Wno-trigraphs -D$(GAME_VERSION) -DREVISION=$(GAME_REVISION) -D$(GAME_LANGUAGE) -DMODERN=$(MODERN)
+CPPFLAGS := $(INCLUDE_CPP_ARGS) -Wno-trigraphs -D$(GAME_VERSION) -DREVISION=$(GAME_REVISION) -D$(GAME_LANGUAGE) -DMODERN=$(MODERN) -DNATIVE_MODS=$(MODS)
 ifeq ($(MODERN),0)
   CPPFLAGS += -I tools/agbcc/include -I tools/agbcc -nostdinc -undef -std=gnu89
   CC1 := tools/agbcc/bin/agbcc$(EXE)
@@ -132,7 +132,7 @@ MAKEFLAGS += --no-print-directory
 ALL_BUILDS := firered firered_rev1 firered_rev10 leafgreen leafgreen_rev1 leafgreen_rev10
 ALL_BUILDS += $(ALL_BUILDS:%=%_modern)
 
-RULES_NO_SCAN += clean clean-assets tidy generated clean-generated
+RULES_NO_SCAN += clean clean-assets tidy generated clean-generated roms setup verify baseline
 .PHONY: all rom modern compare $(ALL_BUILDS) $(ALL_BUILDS:%=compare_%)
 .PHONY: $(RULES_NO_SCAN)
 
@@ -195,6 +195,16 @@ OBJS_REL := $(patsubst $(OBJ_DIR)/%,%,$(OBJS))
 SUBDIRS  := $(sort $(dir $(OBJS)))
 $(shell mkdir -p $(SUBDIRS))
 
+# A real prerequisite, rather than deleting objects while make parses files.
+# The recipe updates the timestamp only when the compile mode changes.
+CONFIG_STAMP := $(OBJ_DIR)/.mods-mode
+.PHONY: FORCE_MOD_CONFIG
+FORCE_MOD_CONFIG:
+$(CONFIG_STAMP): FORCE_MOD_CONFIG
+	@test -f "$@" && test "$$(cat "$@")" = "$(MODS)" || echo "$(MODS)" > "$@"
+$(OBJS): $(CONFIG_STAMP)
+
+
 # Pretend rules that are actually flags defer to `make all`
 modern: all
 compare: all
@@ -207,7 +217,21 @@ endif
 
 syms: $(SYM)
 
+# Public project entry points; compilation remains in pret's rules below.
+.PHONY: roms setup verify baseline patches
+patches:
+	@./scripts/build-patches.sh
+roms:
+	@./scripts/build-roms.sh
+setup:
+	@./scripts/setup.sh
+verify:
+	@./scripts/verify.sh
+baseline:
+	@./scripts/build-roms.sh --baseline
+
 clean: tidy clean-tools clean-generated clean-assets
+	rm -rf dist tests/output
 
 clean-assets:
 	rm -f $(MID_SUBDIR)/*.s

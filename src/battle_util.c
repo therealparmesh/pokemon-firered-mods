@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "item.h"
 #include "text.h"
 #include "util.h"
@@ -79,6 +80,9 @@ void PressurePPLose(u8 target, u8 attacker, u16 move)
 {
     int moveIndex;
 
+#if NATIVE_MODS
+    if (ModPreservePP(attacker)) return;
+#endif
     if (gBattleMons[target].ability != ABILITY_PRESSURE)
         return;
 
@@ -107,6 +111,9 @@ void PressurePPLoseOnUsingImprison(u8 attacker)
     int i, j;
     int imprisonPos = MAX_MON_MOVES;
     u8 atkSide = GetBattlerSide(attacker);
+#if NATIVE_MODS
+    if (ModPreservePP(attacker)) return;
+#endif
 
     for (i = 0; i < gBattlersCount; i++)
     {
@@ -138,6 +145,9 @@ void PressurePPLoseOnUsingPerishSong(u8 attacker)
 {
     int i, j;
     int perishSongPos = MAX_MON_MOVES;
+#if NATIVE_MODS
+    if (ModPreservePP(attacker)) return;
+#endif
 
     for (i = 0; i < gBattlersCount; i++)
     {

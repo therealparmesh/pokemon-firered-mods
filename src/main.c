@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "link.h"
 #include "link_rfu.h"
@@ -152,6 +153,9 @@ void AgbMain()
     ClearDma3Requests();
     ResetBgs();
     InitHeap(gHeap, HEAP_SIZE);
+#if NATIVE_MODS
+    ModReset();
+#endif
     SetDefaultFontsPointer();
 
     gSoftResetDisabled = FALSE;

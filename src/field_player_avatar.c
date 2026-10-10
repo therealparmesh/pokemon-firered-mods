@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "bike.h"
 #include "event_data.h"
@@ -513,6 +514,13 @@ static void PlayerNotOnBikeMoving(u8 direction, u16 heldKeys)
         return;
     }
 
+#if NATIVE_MODS
+    if (ModValue(C_SPEED) && !PlayerIsMovingOnRockStairs(direction))
+    {
+        PlayerWalkFaster(direction);
+        return;
+    }
+#endif
     if ((heldKeys & B_BUTTON) && FlagGet(FLAG_SYS_B_DASH)
         && !IsRunningDisallowed(gObjectEvents[gPlayerAvatar.objectEventId].currentMetatileBehavior))
     {
@@ -556,13 +564,28 @@ static u8 CheckForPlayerAvatarCollision(u8 direction)
 {
     s16 x, y;
     struct ObjectEvent *playerObjEvent = &gObjectEvents[gPlayerAvatar.objectEventId];
+#if NATIVE_MODS
+    u8 nativeCollision;
+#endif
 
     x = playerObjEvent->currentCoords.x;
     y = playerObjEvent->currentCoords.y;
     if (IsDirectionalStairWarpMetatileBehavior(MapGridGetMetatileBehaviorAt(x, y), direction))
         return COLLISION_DIRECTIONAL_STAIR_WARP;
     MoveCoords(direction, &x, &y);
+#if NATIVE_MODS
+    nativeCollision = CheckForObjectEventCollision(playerObjEvent, x, y, direction, MapGridGetMetatileBehaviorAt(x, y));
+    // Preserve native ledge jumps, boulder pushes and surf dismount side effects.
+    if ((nativeCollision == COLLISION_IMPASSABLE || nativeCollision == COLLISION_ELEVATION_MISMATCH) && ModValue(C_WALLS) && x >= 7 && y >= 7 && x < gMapHeader.mapLayout->width + 7 && y < gMapHeader.mapLayout->height + 7)
+    {
+        // Test every collision: the first-hit helper can hide an object behind a wall.
+        u8 collisions = GetCollisionFlagsAtCoords(playerObjEvent, x, y, direction);
+        if (!(collisions & (1 | 8)) && (collisions & (2 | 4))) return COLLISION_NONE;
+    }
+    return nativeCollision;
+#else
     return CheckForObjectEventCollision(playerObjEvent, x, y, direction, MapGridGetMetatileBehaviorAt(x, y));
+#endif
 }
 
 u8 CheckForObjectEventCollision(struct ObjectEvent *objectEvent, s16 x, s16 y, u8 direction, u8 metatileBehavior)

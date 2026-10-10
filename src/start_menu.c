@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "scanline_effect.h"
 #include "overworld.h"
@@ -49,6 +50,9 @@ enum StartMenuOption
     STARTMENU_EXIT,
     STARTMENU_RETIRE,
     STARTMENU_PLAYER2,
+#if NATIVE_MODS
+    STARTMENU_MODS,
+#endif
     MAX_STARTMENU_ITEMS
 };
 
@@ -64,6 +68,9 @@ static EWRAM_DATA bool8 (*sStartMenuCallback)(void) = NULL;
 static EWRAM_DATA u8 sStartMenuCursorPos = 0;
 static EWRAM_DATA u8 sNumStartMenuItems = 0;
 static EWRAM_DATA u8 sStartMenuOrder[MAX_STARTMENU_ITEMS] = {};
+#if NATIVE_MODS
+static EWRAM_DATA bool8 sModShortcutRequested = FALSE;
+#endif
 static EWRAM_DATA s8 sDrawStartMenuState[2] = {};
 static EWRAM_DATA u8 sSafariZoneStatsWindowId = 0;
 static ALIGNED(4) EWRAM_DATA u8 sSaveStatsWindowId = 0;
@@ -86,6 +93,11 @@ static bool8 StartMenuPlayerCallback(void);
 static bool8 StartMenuSaveCallback(void);
 static bool8 StartMenuOptionCallback(void);
 static bool8 StartMenuExitCallback(void);
+#if NATIVE_MODS
+static bool8 StartMenuModsCallback(void);
+static const u8 sModsLabel[] = _("MODS");
+static const u8 sModsDescription[] = _("Review and adjust native mods.");
+#endif
 static bool8 StartMenuSafariZoneRetireCallback(void);
 static bool8 StartMenuLinkPlayerCallback(void);
 static bool8 StartCB_Save1(void);
@@ -122,7 +134,10 @@ static const struct MenuAction sStartMenuActionTable[] = {
     [STARTMENU_OPTION]  = { gText_MenuOption,  {.u8_void = StartMenuOptionCallback} },
     [STARTMENU_EXIT]    = { gText_MenuExit,    {.u8_void = StartMenuExitCallback} },
     [STARTMENU_RETIRE]  = { gText_MenuRetire,  {.u8_void = StartMenuSafariZoneRetireCallback} },
-    [STARTMENU_PLAYER2] = { gText_MenuPlayer,  {.u8_void = StartMenuLinkPlayerCallback} }
+    [STARTMENU_PLAYER2] = { gText_MenuPlayer,  {.u8_void = StartMenuLinkPlayerCallback} },
+#if NATIVE_MODS
+    [STARTMENU_MODS] = { sModsLabel, {.u8_void = StartMenuModsCallback} }
+#endif
 };
 
 static const struct WindowTemplate sSafariZoneStatsWindowTemplate = {
@@ -144,7 +159,10 @@ static const u8 *const sStartMenuDescPointers[] = {
     gStartMenuDesc_Option,
     gStartMenuDesc_Exit,
     gStartMenuDesc_Retire,
-    gStartMenuDesc_Player
+    gStartMenuDesc_Player,
+#if NATIVE_MODS
+    sModsDescription
+#endif
 };
 
 static const struct BgTemplate sBGTemplates_AfterLinkSaveMessage[] = {
@@ -220,6 +238,9 @@ static void SetUpStartMenu_NormalField(void)
     AppendToStartMenuItems(STARTMENU_PLAYER);
     AppendToStartMenuItems(STARTMENU_SAVE);
     AppendToStartMenuItems(STARTMENU_OPTION);
+#if NATIVE_MODS
+    AppendToStartMenuItems(STARTMENU_MODS);
+#endif
     AppendToStartMenuItems(STARTMENU_EXIT);
 }
 
@@ -231,6 +252,9 @@ static void SetUpStartMenu_SafariZone(void)
     AppendToStartMenuItems(STARTMENU_BAG);
     AppendToStartMenuItems(STARTMENU_PLAYER);
     AppendToStartMenuItems(STARTMENU_OPTION);
+#if NATIVE_MODS
+    AppendToStartMenuItems(STARTMENU_MODS);
+#endif
     AppendToStartMenuItems(STARTMENU_EXIT);
 }
 
@@ -347,6 +371,10 @@ static void DrawStartMenuInOneGo(void)
 
 static void task50_startmenu(u8 taskId)
 {
+#if NATIVE_MODS
+    if (gMain.heldKeysRaw == (START_BUTTON | SELECT_BUTTON))
+        sModShortcutRequested = TRUE;
+#endif
     if (DoDrawStartMenu() == TRUE)
         SwitchTaskToFollowupFunc(taskId);
 }
@@ -395,6 +423,10 @@ void Task_StartMenuHandleInput(u8 taskId)
 
 void ShowStartMenu(void)
 {
+#if NATIVE_MODS
+    // Preserve a short simultaneous press while the native menu is drawing.
+    sModShortcutRequested = gMain.heldKeysRaw == (START_BUTTON | SELECT_BUTTON);
+#endif
     if (!IsUpdateLinkStateCBActive())
     {
         FreezeObjectEvents();
@@ -407,6 +439,18 @@ void ShowStartMenu(void)
 
 static bool8 StartCB_HandleInput(void)
 {
+#if NATIVE_MODS
+    u8 i;
+    bool8 requested = sModShortcutRequested;
+    sModShortcutRequested = FALSE;
+    if (requested || gMain.heldKeysRaw == (START_BUTTON | SELECT_BUTTON))
+    {
+        // The shortcut is available only where the Mods entry is available.
+        for (i = 0; i < sNumStartMenuItems; i++)
+            if (sStartMenuOrder[i] == STARTMENU_MODS && !QL_IS_PLAYBACK_STATE)
+                return StartMenuModsCallback();
+    }
+#endif
     if (JOY_NEW(DPAD_UP))
     {
         PlaySE(SE_SELECT);
@@ -448,7 +492,11 @@ static void StartMenu_FadeScreenIfLeavingOverworld(void)
 {
     if (sStartMenuCallback != StartMenuSaveCallback
      && sStartMenuCallback != StartMenuExitCallback
-     && sStartMenuCallback != StartMenuSafariZoneRetireCallback)
+     && sStartMenuCallback != StartMenuSafariZoneRetireCallback
+#if NATIVE_MODS
+     && sStartMenuCallback != StartMenuModsCallback
+#endif
+    )
     {
         StopPokemonLeagueLightingEffectTask();
         FadeScreen(FADE_TO_BLACK, 0);
@@ -542,6 +590,17 @@ static bool8 StartMenuExitCallback(void)
     CloseStartMenu();
     return TRUE;
 }
+
+#if NATIVE_MODS
+static bool8 StartMenuModsCallback(void)
+{
+    DestroySafariZoneStatsWindow();
+    DestroyHelpMessageWindow_();
+    CloseStartMenu();
+    ModOpenMenu();
+    return TRUE;
+}
+#endif
 
 static bool8 StartMenuSafariZoneRetireCallback(void)
 {

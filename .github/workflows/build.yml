@@ -1,104 +1,40 @@
-name: CI
-
+name: Build and verify both games
 on:
   push:
-    branches: [ master ]
+    branches: [native-mods]
   pull_request:
-
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  roms:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     env:
-      GAME_VERSION: FIRERED
-      GAME_LANGUAGE: ENGLISH
-      GAME_REVISION: 0
-      MODERN: 0
-      COMPARE: 1
+      JOBS: 2
     steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Checkout agbcc
-        uses: actions/checkout@master
-        with:
-          path: 'agbcc'
-          repository: 'pret/agbcc'
-
-      - name: Checkout symbols
-        if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@master
-        with:
-          path: 'symbols'
-          ref: 'symbols'
-
-      - name: Install binutils
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install host prerequisites
         run: |
-          sudo apt update
-          sudo apt install gcc-arm-none-eabi binutils-arm-none-eabi libpng-dev
-        # build-essential and git are already installed
-        # gcc-arm-none-eabi is only needed for the modern build
-        # as an alternative to dkP
-
-      - name: Install agbcc
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential git gcc-arm-none-eabi binutils-arm-none-eabi libpng-dev pkg-config python3 perl cmake
+      - name: Set up pinned compiler and headless emulator
+        run: make setup
+      - name: Verify exact upstream baselines
+        run: make baseline
+      - name: Build and test both games and verify BPS patches
+        run: make patches
+      - name: Verify failure cleanup
+        run: python3 tests/pipeline_failures.py
+      # ROMs, saves, and emulator states stay on the ephemeral runner.
+      # No binary artifacts or releases are uploaded by this workflow.
+      - name: Summarize verified outputs
         run: |
-          ./build.sh
-          ./install.sh ../
-        working-directory: ./agbcc
-
-      - name: Compare FireRed
-        run: |
-          make -j${nproc} all syms
-
-      - name: Compare FireRed rev1
-        env:
-          GAME_REVISION: 1
-        run: |
-          make -j${nproc} all syms
-
-      - name: Compare FireRed rev10
-        env:
-          GAME_REVISION: 10
-        run: |
-          make -j${nproc} all syms
-
-      - name: Compare LeafGreen
-        env:
-          GAME_VERSION: LEAFGREEN
-        run: |
-          make -j${nproc} all syms
-
-      - name: Compare LeafGreen rev1
-        env:
-          GAME_VERSION: LEAFGREEN
-          GAME_REVISION: 1
-        run: |
-          make -j${nproc} all syms
-
-      - name: Compare LeafGreen rev10
-        env:
-          GAME_VERSION: LEAFGREEN
-          GAME_REVISION: 10
-        run: |
-          make -j${nproc} all syms
-
-      - name: Build Modern
-        env:
-          MODERN: 1
-          COMPARE: 0
-        run: |
-          make -j${nproc} all
-
-      - name: Move symfiles
-        if: ${{ github.event_name == 'push' }}
-        run: |
-          cp *.sym symbols/
-          echo "SYMBOLS_COMMIT_MSG=$( git log --format=%s ${GITHUB_SHA} )" >> $GITHUB_ENV
-
-      - name: Update symfiles
-        if: ${{ github.event_name == 'push' }}
-        uses: EndBug/add-and-commit@v7
-        with:
-          branch: symbols
-          cwd: "./symbols"
-          add: "*.sym"
-          message: ${{ env.SYMBOLS_COMMIT_MSG }}
+          python3 - <<'PY'
+          import json, os, pathlib
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              for game in ('firered', 'leafgreen'):
+                  result = json.loads(pathlib.Path('tests/output', game, 'results.json').read_text())
+                  summary.write(f"- {game}: {len(result['passed'])} emulator checks passed; SHA-256 `{result['rom_sha256']}`\n")
+          PY

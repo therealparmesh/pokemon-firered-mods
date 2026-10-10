@@ -1,0 +1,21 @@
+# Earn Surf permission through a real gym battle; no badge or avatar RAM injection.
+m.load(out/'world-base.state');configure_party([94,57,105,45],150);toggle(2,0,10,1);toggle(2,1,11,1)
+teleport(8);toggle(3,2,15,1);walk_to(16,40,(1,0));toggle(3,2,15,0)
+m.frames(UP,32);m.frames(0,400)
+toggle(3,2,15,1);walk_to(14,21);m.tap(UP);m.tap(A);wait_command()
+move(0);finish_battle()
+for _ in range(100):m.tap(B,wait=30)
+check(flag(0x824),'Native Koga trainer battle awards the Soul Badge')
+teleport(9);toggle(2,4,14,1);toggle(3,2,15,1);walk_to(19,21,(1,0));toggle(3,2,15,0)
+m.tap(DOWN);m.tap(A)
+for _ in range(60):
+    if m.read('gPlayerAvatar',1)&8:break
+    m.tap(A,wait=30)
+m.frames(0,300)
+check(bool(m.read('gPlayerAvatar',1)&8),'Native Surf mounts on Cinnabar ocean using a party move and earned badge')
+snap('surf-mounted');m.save(out/'surf-mounted.state')
+toggle(3,2,15,1);toggle(3,3,16,1);m.frames(UP,32);m.frames(0,180)
+check(not m.read('gPlayerAvatar',1)&8 and struct.unpack('<hh',position())==(19,21),'Walls and fast walking preserve native Surf dismount onto shore')
+m.load(out/'surf-mounted.state');teleport(2)
+check(not m.read('gPlayerAvatar',1)&8,'Teleport from Surf arrives on land with the normal walking avatar')
+open_menu();close_menu();snap('surf-teleported')

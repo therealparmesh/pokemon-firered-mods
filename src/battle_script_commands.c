@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "item.h"
 #include "util.h"
@@ -1122,6 +1123,10 @@ static void Cmd_attackstring(void)
 static void Cmd_ppreduce(void)
 {
     s32 ppToDeduct = 1;
+#if NATIVE_MODS
+    if (ModPreservePP(gBattlerAttacker))
+        gHitMarker |= HITMARKER_NO_PPDEDUCT;
+#endif
 
     if (gBattleControllerExecFlags)
         return;
@@ -1713,6 +1718,9 @@ static void Cmd_healthbarupdate(void)
     if (!(gMoveResultFlags & MOVE_RESULT_NO_EFFECT))
     {
         gActiveBattler = GetBattlerForBattleScript(gBattlescriptCurrInstr[1]);
+#if NATIVE_MODS
+        if (ModProtectBattler(gActiveBattler) && gBattleMoveDamage > 0) gBattleMoveDamage = 0;
+#endif
 
         if (gBattleMons[gActiveBattler].status2 & STATUS2_SUBSTITUTE && gDisableStructs[gActiveBattler].substituteHP && !(gHitMarker & HITMARKER_IGNORE_SUBSTITUTE))
         {
@@ -1758,6 +1766,9 @@ static void Cmd_datahpupdate(void)
     if (!(gMoveResultFlags & MOVE_RESULT_NO_EFFECT))
     {
         gActiveBattler = GetBattlerForBattleScript(gBattlescriptCurrInstr[1]);
+#if NATIVE_MODS
+        if (ModProtectBattler(gActiveBattler) && gBattleMoveDamage > 0) gBattleMoveDamage = 0;
+#endif
         if (gBattleMons[gActiveBattler].status2 & STATUS2_SUBSTITUTE && gDisableStructs[gActiveBattler].substituteHP && !(gHitMarker & HITMARKER_IGNORE_SUBSTITUTE))
         {
             if (gDisableStructs[gActiveBattler].substituteHP >= gBattleMoveDamage)
@@ -2895,7 +2906,11 @@ static void Cmd_tryfaintmon(void)
              && !(gHitMarker & HITMARKER_GRUDGE)
              && GetBattlerSide(gBattlerAttacker) != GetBattlerSide(gBattlerTarget)
              && gBattleMons[gBattlerAttacker].hp != 0
-             && gCurrentMove != MOVE_STRUGGLE)
+             && gCurrentMove != MOVE_STRUGGLE
+#if NATIVE_MODS
+             && !ModPreservePP(gBattlerAttacker)
+#endif
+             )
             {
                 u8 moveIndex = *(gBattleStruct->chosenMovePositions + gBattlerAttacker);
 
@@ -3265,6 +3280,13 @@ static void Cmd_getexp(void)
                     PREPARE_MON_NICK_WITH_PREFIX_BUFFER(gBattleTextBuff1, gBattleStruct->expGetterBattlerId, gBattleStruct->expGetterMonId);
                     // buffer 'gained' or 'gained a boosted'
                     PREPARE_STRING_BUFFER(gBattleTextBuff2, i);
+#if NATIVE_MODS
+                    if (ModBattleAllowed())
+                    {
+                        gBattleMoveDamage *= ModValue(C_EXP);
+                        if (gBattleMoveDamage > 65535) gBattleMoveDamage = 65535;
+                    }
+#endif
                     PREPARE_WORD_NUMBER_BUFFER(gBattleTextBuff3, 5, gBattleMoveDamage);
 
                     PrepareStringBattle(STRINGID_PKMNGAINEDEXP, gBattleStruct->expGetterBattlerId);
@@ -6297,6 +6319,9 @@ static void Cmd_setatkhptozero(void)
         return;
 
     gActiveBattler = gBattlerAttacker;
+#if NATIVE_MODS
+    if (ModProtectBattler(gActiveBattler)) { gBattlescriptCurrInstr++; return; }
+#endif
     gBattleMons[gActiveBattler].hp = 0;
     BtlController_EmitSetMonData(BUFFER_A, REQUEST_HP_BATTLE, 0, sizeof(gBattleMons[gActiveBattler].hp), &gBattleMons[gActiveBattler].hp);
     MarkBattlerForControllerExec(gActiveBattler);
@@ -7942,6 +7967,13 @@ static void Cmd_remaininghptopower(void)
 
 static void Cmd_tryspiteppreduce(void)
 {
+#if NATIVE_MODS
+    if (ModPreservePP(gBattlerTarget))
+    {
+        gBattlescriptCurrInstr = T1_READ_PTR(gBattlescriptCurrInstr + 1);
+        return;
+    }
+#endif
     if (gLastMoves[gBattlerTarget] != MOVE_NONE
      && gLastMoves[gBattlerTarget] != MOVE_UNAVAILABLE)
     {
@@ -9568,6 +9600,9 @@ static void Cmd_handleballthrow(void)
             }
         }
 
+#if NATIVE_MODS
+        if (ModBattleAllowed() && ModValue(C_CAPTURE)) odds = 255;
+#endif
         if (odds > 254) // mon caught
         {
             BtlController_EmitBallThrowAnim(BUFFER_A, BALL_3_SHAKES_SUCCESS);
@@ -9864,6 +9899,9 @@ static void Cmd_trygivecaughtmonnick(void)
 
 static void Cmd_subattackerhpbydmg(void)
 {
+#if NATIVE_MODS
+    if (!ModProtectBattler(gBattlerAttacker))
+#endif
     gBattleMons[gBattlerAttacker].hp -= gBattleMoveDamage;
     gBattlescriptCurrInstr++;
 }

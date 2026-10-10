@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "decompress.h"
 #include "m4a.h"
@@ -49,6 +50,9 @@ u8 RunHelpSystemCallback(void)
             return 0;
         if (JOY_NEW(R_BUTTON) && gHelpSystemToggleWithRButtonDisabled == TRUE)
             return 0;
+#if NATIVE_MODS
+        if (gModMenuOpen) return 0;
+#endif
         if (JOY_NEW(L_BUTTON | R_BUTTON))
         {
             if (!HelpSystem_IsSinglePlayer() || !gHelpSystemEnabled)

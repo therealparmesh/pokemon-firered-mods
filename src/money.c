@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "event_data.h"
 #include "menu.h"
@@ -11,6 +12,9 @@ EWRAM_DATA static u8 sMoneyBoxWindowId = 0;
 
 u32 GetMoney(u32 *moneyPtr)
 {
+#if NATIVE_MODS
+    if (ModValue(C_MONEY) && moneyPtr == &gSaveBlock1Ptr->money) return MAX_MONEY;
+#endif
     return *moneyPtr ^ gSaveBlock2Ptr->encryptionKey;
 }
 
@@ -29,7 +33,11 @@ bool8 IsEnoughMoney(u32 *moneyPtr, u32 cost)
 
 void AddMoney(u32 *moneyPtr, u32 toAdd)
 {
+#if NATIVE_MODS
+    u32 toSet = *moneyPtr ^ gSaveBlock2Ptr->encryptionKey;
+#else
     u32 toSet = GetMoney(moneyPtr);
+#endif
 
     // can't have more money than MAX
     if (toSet + toAdd > MAX_MONEY)
@@ -40,7 +48,11 @@ void AddMoney(u32 *moneyPtr, u32 toAdd)
     {
         toSet += toAdd;
         // check overflow, can't have less money after you receive more
+        #if NATIVE_MODS
+        if (toSet < (*moneyPtr ^ gSaveBlock2Ptr->encryptionKey))
+#else
         if (toSet < GetMoney(moneyPtr))
+#endif
             toSet = MAX_MONEY;
     }
 
@@ -49,8 +61,15 @@ void AddMoney(u32 *moneyPtr, u32 toAdd)
 
 void RemoveMoney(u32 *moneyPtr, u32 toSub)
 {
+#if NATIVE_MODS
+    u32 toSet = *moneyPtr ^ gSaveBlock2Ptr->encryptionKey;
+#else
     u32 toSet = GetMoney(moneyPtr);
+#endif
 
+#if NATIVE_MODS
+    if (ModValue(C_MONEY) && moneyPtr == &gSaveBlock1Ptr->money) return;
+#endif
     // can't subtract more than you already have
     if (toSet < toSub)
         toSet = 0;

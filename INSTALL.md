@@ -1,11 +1,13 @@
-# Instructions
+# Upstream toolchain reference
+
+> For this fork's supported English revision 0 mod builds, use [`make setup` and `make roms` from README.md](README.md#build). The retained upstream guide below describes additional toolchain options and original-game revisions. Use `make baseline` or `MODS=0` for original-game checksum comparisons; mod builds intentionally have different hashes. Extra revision/modern targets are not part of this fork's verified mod pipeline.
 
 These instructions explain how to set up the tools required to build **pokefirered**, which assembles the source files into a ROM.
 
 These instructions come with notes which can be expanded by clicking the "<i>Note...</i>" text.
 In general, you should not need to open these unless if you get an error or if you need additional clarification.
 
-If you run into trouble, ask for help on Discord or IRC (see [README.md](README.md)).
+For upstream contacts, see the [pret README](https://github.com/pret/pokefirered#readme). For this fork, use its GitHub repository.
 
 ## Windows
 Windows has instructions for building with three possible terminals, providing 3 different options in case the user stumbles upon unexpected errors.

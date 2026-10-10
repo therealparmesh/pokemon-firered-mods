@@ -56,3 +56,6 @@ endif
 ifeq ($(GAME_LANGUAGE),ENGLISH)
   GAME_CODE  := $(GAME_CODE)E
 endif
+
+# Native mods can be disabled for exact original-game builds.
+MODS ?= 1

@@ -7,6 +7,7 @@
 #define INDEX_CANCEL -2
 
 void CreatePokemartMenu(const u16 *itemsForSale);
+void CreateModPokemartMenu(const u16 *itemsForSale);
 void CreateDecorationShop1Menu(const u16 *);
 void CreateDecorationShop2Menu(const u16 *);
 u8 GetMartFontId(void);

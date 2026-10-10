@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "task.h"
 #include "help_system.h"
 #include "overworld.h"
@@ -236,6 +237,9 @@ static bool8 CheckSilphScopeInPokemonTower(u16 mapGroup, u16 mapNum)
 
 void StartWildBattle(void)
 {
+#if NATIVE_MODS
+    ModModifyWildMon(&gEnemyParty[0]);
+#endif
     if (GetSafariZoneFlag())
         DoSafariBattle();
     else if (CheckSilphScopeInPokemonTower(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum))
@@ -258,6 +262,9 @@ static void DoStandardWildBattle(void)
 
 void StartRoamerBattle(void)
 {
+#if NATIVE_MODS
+    ModModifyWildMon(&gEnemyParty[0]);
+#endif
     LockPlayerFieldControls();
     FreezeObjectEvents();
     StopPlayerAvatar();
@@ -309,6 +316,9 @@ void StartOldManTutorialBattle(void)
 
 void StartScriptedWildBattle(void)
 {
+#if NATIVE_MODS
+    ModModifyWildMon(&gEnemyParty[0]);
+#endif
     LockPlayerFieldControls();
     gMain.savedCallback = CB2_EndScriptedWildBattle;
     gBattleTypeFlags = BATTLE_TYPE_WILD_SCRIPTED;
@@ -338,6 +348,9 @@ void StartMarowakBattle(void)
 
 void StartSouthernIslandBattle(void)
 {
+#if NATIVE_MODS
+    ModModifyWildMon(&gEnemyParty[0]);
+#endif
     LockPlayerFieldControls();
     gMain.savedCallback = CB2_EndScriptedWildBattle;
     gBattleTypeFlags = BATTLE_TYPE_LEGENDARY;
@@ -349,6 +362,9 @@ void StartSouthernIslandBattle(void)
 void StartLegendaryBattle(void)
 {
     u16 species;
+#if NATIVE_MODS
+    ModModifyWildMon(&gEnemyParty[0]);
+#endif
     
     LockPlayerFieldControls();
     gMain.savedCallback = CB2_EndScriptedWildBattle;
@@ -379,6 +395,9 @@ void StartLegendaryBattle(void)
 
 void StartGroudonKyogreBattle(void)
 {
+#if NATIVE_MODS
+    ModModifyWildMon(&gEnemyParty[0]);
+#endif
     LockPlayerFieldControls();
     gMain.savedCallback = CB2_EndScriptedWildBattle;
     gBattleTypeFlags = BATTLE_TYPE_LEGENDARY | BATTLE_TYPE_KYOGRE_GROUDON;
@@ -392,6 +411,9 @@ void StartGroudonKyogreBattle(void)
 
 void StartRegiBattle(void)
 {
+#if NATIVE_MODS
+    ModModifyWildMon(&gEnemyParty[0]);
+#endif
     LockPlayerFieldControls();
     gMain.savedCallback = CB2_EndScriptedWildBattle;
     gBattleTypeFlags = BATTLE_TYPE_LEGENDARY | BATTLE_TYPE_REGI;

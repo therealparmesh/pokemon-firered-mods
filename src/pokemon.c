@@ -1,6 +1,7 @@
 #define IS_POKEMON_C
 
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "random.h"
 #include "text.h"
@@ -6451,3 +6452,17 @@ u8 *MonSpritesGfxManager_GetSpritePtr(u8 spriteNum)
         return sMonSpritesGfxManager->spritePointers[spriteNum];
     }
 }
+
+#if NATIVE_MODS
+void ModSetMonPersonality(struct Pokemon *mon, u32 personality)
+{
+    union PokemonSubstruct data[4];
+    u8 i;
+    struct BoxPokemon *box = &mon->box;
+    DecryptBoxMon(box);
+    for (i = 0; i < 4; i++) data[i] = *GetSubstruct(box, box->personality, i);
+    box->personality = personality;
+    for (i = 0; i < 4; i++) *GetSubstruct(box, personality, i) = data[i];
+    EncryptBoxMon(box);
+}
+#endif

@@ -68,3 +68,12 @@ build-cmake-*/
 CMakeLists.txt
 compile_commands.json
 .porydaw/
+
+# Local toolchains and generated deliverables
+.build-deps/
+dist/
+logs/
+tests/output/
+roms/
+*.sav
+__pycache__/

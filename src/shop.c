@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "gflib.h"
 #include "shop.h"
 #include "menu.h"
@@ -22,6 +23,7 @@
 #include "field_player_avatar.h"
 #include "fieldmap.h"
 #include "event_object_movement.h"
+#include "event_object_lock.h"
 #include "money.h"
 #include "quest_log.h"
 #include "script.h"
@@ -603,7 +605,11 @@ static void BuyMenuPrintPriceInList(u8 windowId, u32 item, u8 y)
 
     if (item != INDEX_CANCEL)
     {
+#if NATIVE_MODS
+        ConvertIntToDecimalStringN(gStringVar1, ModValue(C_FREE) ? 0 : ItemId_GetPrice(item), 0, 4);
+#else
         ConvertIntToDecimalStringN(gStringVar1, ItemId_GetPrice(item), 0, 4);
+#endif
         x = 4 - StringLength(gStringVar1);
         loc = gStringVar4;
         while (x-- != 0)
@@ -892,6 +898,9 @@ static void Task_BuyMenu(u8 taskId)
             BuyMenuPrintCursor(tListTaskId, 2);
             RecolorItemDescriptionBox(1);
             sShopData.itemPrice = ItemId_GetPrice(itemId);
+#if NATIVE_MODS
+            if (ModValue(C_FREE)) sShopData.itemPrice = 0;
+#endif
             if (!IsEnoughMoney(&gSaveBlock1Ptr->money, sShopData.itemPrice))
             {
                 BuyMenuDisplayMessage(taskId, gText_YouDontHaveMoney, BuyMenuReturnToItemList);
@@ -920,6 +929,10 @@ static void Task_BuyHowManyDialogueInit(u8 taskId)
     BuyMenuQuantityBoxNormalBorder(3, 0);
     BuyMenuPrintItemQuantityAndPrice(taskId);
     ScheduleBgCopyTilemapToVram(0);
+#if NATIVE_MODS
+    if (ModValue(C_FREE)) maxQuantity = 99;
+    else
+#endif
     maxQuantity = GetMoney(&gSaveBlock1Ptr->money) / ItemId_GetPrice(tItemId);
     if (maxQuantity > 99)
         sShopData.maxQuantity = 99;
@@ -939,6 +952,9 @@ static void Task_BuyHowManyDialogueHandleInput(u8 taskId)
     if (AdjustQuantityAccordingToDPadInput(&tItemCount, sShopData.maxQuantity) == TRUE)
     {
         sShopData.itemPrice = ItemId_GetPrice(tItemId) * tItemCount;
+#if NATIVE_MODS
+        if (ModValue(C_FREE)) sShopData.itemPrice = 0;
+#endif
         BuyMenuPrintItemQuantityAndPrice(taskId);
     }
     else
@@ -1143,3 +1159,20 @@ void CreateDecorationShop2Menu(const u16 *itemsForSale)
     SetShopMenuCallback(ScriptContext_Enable);
 }
 
+
+#if NATIVE_MODS
+static void ModShopClosed(void)
+{
+    ClearPlayerHeldMovementAndUnfreezeObjectEvents();
+    UnlockPlayerFieldControls();
+}
+
+void CreateModPokemartMenu(const u16 *itemsForSale)
+{
+    FreezeObjectEvents();
+    StopPlayerAvatar();
+    LockPlayerFieldControls();
+    CreatePokemartMenu(itemsForSale);
+    SetShopMenuCallback(ModShopClosed);
+}
+#endif

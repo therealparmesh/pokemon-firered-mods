@@ -21,7 +21,13 @@ Route11_Text_JasperPostBattle::
     .string "of POKéMON!$"
 
 Route11_Text_EddieIntro::
-    .string "Let's go, but don't cheat!$"
+    .if NATIVE_MODS
+    .string "Let's go, but play fair!$"
+    .else
+    @ Preserve original revision 0 dialogue bytes for exact baseline reconstruction.
+    .string "Let's go, but don't "
+    .byte 0xD7, 0xDC, 0xD9, 0xD5, 0xE8, 0xAB, 0xFF
+    .endif
 
 Route11_Text_EddieDefeat::
     .string "Huh?\n"

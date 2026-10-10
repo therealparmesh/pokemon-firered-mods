@@ -1,4 +1,5 @@
 #include "global.h"
+#include "mods.h"
 #include "random.h"
 #include "wild_encounter.h"
 #include "event_data.h"
@@ -356,6 +357,9 @@ bool8 StandardWildEncounter(u32 currMetatileAttrs, u16 previousMetatileBehavior)
 {
     u16 headerId;
     struct Roamer * roamer;
+#if NATIVE_MODS
+    if (ModValue(C_NO_ENCOUNTERS)) return FALSE;
+#endif
 
     if (sWildEncountersDisabled == TRUE)
         return FALSE;
